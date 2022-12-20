@@ -1,10 +1,10 @@
-const WebRtcConnection = require('./WebRtcConnection')
+// const WebRtcConnection = require('./WebRtcConnection')
+import { WebRtcConnection } from './WebRtcConnection'
 
-// therd package
-const express = require('express')
-const http = require('http')
-const { Server } = require('socket.io')
-const { log } = require('console')
+
+import express from 'express'
+import http from 'http'
+import { Server , Socket } from 'socket.io'
 
 
 // set up express
@@ -21,7 +21,7 @@ const peerConnections = new Map()
 const gameInfo = new Map()
 
 // create RTCPeerConnection specify to this socket
-const createRTCConnection = async (socketId) => {
+const createRTCConnection = async (socketId : string) => {
     // create WebRtcConnection
     const connection = new WebRtcConnection("players-info", updateGameInfo)
     await connection.doOffer()
@@ -32,7 +32,7 @@ const createRTCConnection = async (socketId) => {
     // send out RTCPeerConnection info to socket
     emit(socketId, "create-webrtc", {
         localDescription : connection.localDescription,
-        chanelLabel : connection.chanelLabel
+        channelLabel : connection.channelLabel
     })
 }
 
@@ -41,17 +41,17 @@ const emit = (to,event,response) => {
     io.to(to).emit(event, response)
 }
 
-// we generete some simple ID to decrese bites send from server to client
-let lastplayerGameId = 0
+// we generate some simple ID to decrease bites send from server to client
+let lastPlayerGameId = 0
 const createGameId = () => {
-    lastplayerGameId++
-    gameInfo.set(lastplayerGameId, {i : lastplayerGameId, r : Math.random(), t : Date.now()})
-    return lastplayerGameId
+    lastPlayerGameId++
+    gameInfo.set(lastPlayerGameId, {i : lastPlayerGameId, r : Math.random(), t : Date.now()})
+    return lastPlayerGameId
 }
 
 // update info 
 const updateGameInfo = ({data}) => {
-    // data come from clinetPeerConnection
+    // data come from clientPeerConnection
     const newInfo = JSON.parse(data)
     const lastInfo = gameInfo.get(newInfo.i)
     if (newInfo.t > lastInfo.t) { gameInfo.set(newInfo.i,newInfo) }
@@ -70,7 +70,7 @@ function startGame(){
 }
 
 
-io.on('connection', (socket) => { 
+io.on('connection', (socket : Socket) => { 
 
     // wait until some event in this case "load-over" to create peerConnections
     socket.on("load-over",() => { createRTCConnection(socket.id) })
@@ -83,11 +83,11 @@ io.on('connection', (socket) => {
             try {
                 // start game
                 if (!isGameStart){ startGame() }
-                // if exsit we "applyAnswer" receive from client
+                // if exists we "applyAnswer" receive from client
                 await connection.applyAnswer(answer);
                 // if request reach here everything is good
                 // and we created peer-to-peer connection between client and server
-                // send out some event to client do somthing after connection created
+                // send out some event to client do something after connection created
                 const id = createGameId()
                 emit(socket.id,"room-start-game", {status : 200, gameId : id} )
             } catch (error) {

@@ -5,29 +5,37 @@ const TIME_TO_HOST_CANDIDATES = 3000;  // NOTE(mroberts): Too long.
 const TIME_TO_RECONNECTED = 10000;
 
 
-class WebRtcConnection
-{
-  constructor(chanelLabel, onMessege){
+export class WebRtcConnection {
+  public sendData;
+  public onIceConnectionStateChange;
+  public close;
+  public doOffer;
+  public applyAnswer;
+  public readonly channelLabel;
+  public localDescription;
 
+  constructor(channelLabel: string, onMessage: (data: { data: any; }) => void) {
+    this.channelLabel = channelLabel;
     const peerConnection = new RTCPeerConnection({});
+    this.localDescription = peerConnection.localDescription;
 
-    // crete datachanel
-    const dataChannel = peerConnection.createDataChannel(chanelLabel);
+    // crete dataChanel
+    const dataChannel = peerConnection.createDataChannel(channelLabel);
 
-    // masege event come from client
-    function onMessagereceived(event) { onMessege(event) }
-    dataChannel.onmessage = (event) => { onMessagereceived(event) }
+    // message event come from client
+    function onMessagereceived(event) { onMessage(event); }
+    dataChannel.onmessage = (event) => { onMessagereceived(event); };
 
     // this object create and timer will be active
     // and offer send to client 
-    let connectionTimer = setTimeout(() => {
+    let connectionTimer: NodeJS.Timer | null = setTimeout(() => {
       if (peerConnection.iceConnectionState !== 'connected'
         && peerConnection.iceConnectionState !== 'completed') {
         this.close();
       }
     }, TIME_TO_CONNECTED);
 
-    let reconnectionTimer = null;
+    let reconnectionTimer: NodeJS.Timer | null = null;
 
     const onIceConnectionStateChange = () => {
       if (peerConnection.iceConnectionState === 'connected'
@@ -36,7 +44,7 @@ class WebRtcConnection
           clearTimeout(connectionTimer);
           connectionTimer = null;
         }
-        clearTimeout(reconnectionTimer);
+        if (reconnectionTimer) clearTimeout(reconnectionTimer);
         reconnectionTimer = null;
       } else if (peerConnection.iceConnectionState === 'disconnected'
         || peerConnection.iceConnectionState === 'failed') {
@@ -44,17 +52,17 @@ class WebRtcConnection
           const self = this;
           reconnectionTimer = setTimeout(() => {
             self.close();
-          }, TIME_TO_RECONNECTED );
+          }, TIME_TO_RECONNECTED);
         }
       }
     };
     peerConnection.addEventListener('iceconnectionstatechange', onIceConnectionStateChange);
 
     this.sendData = (data) => {
-      if ( dataChannel && dataChannel.readyState == 'open' ) {
-        dataChannel.send(data)
+      if (dataChannel && dataChannel.readyState == 'open') {
+        dataChannel.send(data);
       }
-    }
+    };
 
     /**
      * doOffer
@@ -63,7 +71,7 @@ class WebRtcConnection
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
       try {
-        await waitUntilIceGatheringStateComplete(peerConnection, TIME_TO_HOST_CANDIDATES );
+        await waitUntilIceGatheringStateComplete(peerConnection, TIME_TO_HOST_CANDIDATES);
       } catch (error) {
         this.close();
         throw error;
@@ -93,15 +101,15 @@ class WebRtcConnection
     Object.defineProperties(this, {
       localDescription: {
         get() {
-          return peerConnection.localDescription
+          return peerConnection.localDescription;
         }
       },
-      chanelLabel: {
+      channelLabel: {
         get() {
-          return chanelLabel
+          return channelLabel;
         }
       },
-    })
+    });
 
   }
 }
@@ -112,7 +120,7 @@ async function waitUntilIceGatheringStateComplete(peerConnection, TIME_TO_HOST_C
   }
 
 
-  const deferred = {};
+  const deferred: any = {};
   deferred.promise = new Promise((resolve, reject) => {
     deferred.resolve = resolve;
     deferred.reject = reject;
@@ -135,6 +143,3 @@ async function waitUntilIceGatheringStateComplete(peerConnection, TIME_TO_HOST_C
 
   await deferred.promise;
 }
-
-
-module.exports = WebRtcConnection
